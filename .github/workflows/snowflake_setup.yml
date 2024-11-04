@@ -1,0 +1,53 @@
+name: Create Snowflake Database
+
+on:
+  push:
+    branches:
+      - main  # Adjust if your default branch is different
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  setup-snowflake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python environment
+        run: |
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install snowflake-connector-python
+
+      - name: Execute SQL script in Snowflake
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+        run: |
+          . venv/bin/activate
+          python -c "
+import snowflake.connector
+
+# Establish Snowflake connection
+conn = snowflake.connector.connect(
+    user='$SNOWFLAKE_USER',
+    password='$SNOWFLAKE_PASSWORD',
+    account='$SNOWFLAKE_ACCOUNT',
+    warehouse='$SNOWFLAKE_WAREHOUSE'
+)
+
+# Read SQL commands from file
+with open('create_database.sql', 'r') as file:
+    sql_commands = file.read().split(';')
+
+# Execute each SQL command
+with conn.cursor() as cursor:
+    for command in sql_commands:
+        if command.strip():
+            cursor.execute(command)
+
+print('Database and schema created successfully.')
+"
